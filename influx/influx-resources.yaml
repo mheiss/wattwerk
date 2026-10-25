@@ -1,0 +1,1414 @@
+apiVersion: influxdata.com/v2alpha1
+kind: Bucket
+metadata:
+    name: charming-kirch-a94001
+spec:
+    name: aggregated
+    retentionRules:
+        - everySeconds: 6.2208e+07
+          type: expire
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Bucket
+metadata:
+    name: loving-bassi-a94005
+spec:
+    name: history
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Bucket
+metadata:
+    name: priceless-ishizaka-a94003
+spec:
+    name: evcc
+    retentionRules:
+        - everySeconds: 7.776e+06
+          type: expire
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Bucket
+metadata:
+    name: xenodochial-leavitt-a94007
+spec:
+    name: openhab
+    retentionRules:
+        - everySeconds: 7.776e+06
+          type: expire
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: amusing-maxwell-e94009
+spec:
+    cron: 59 * * * *
+    name: Energy_Revenue_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "Energy_Revenue_Day"
+        option destination = "Energy_Revenue_Month"
+
+        from(bucket: "history")
+            |> range(start: date.month(t: -3mo))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1mo)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: annoying-meninsky-29400d
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_ToGrid_Energy_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_ToGrid_Energy_Day"
+        option destination = "FroniusSymo_ToGrid_Energy_Month"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1mo)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: awesome-cray-e94007
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_ToBattery_Energy_Day
+    offset: 45s
+    query: |-
+        import "date"
+        import "math"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_Battery_Power"
+        option destination = "FroniusSymo_ToBattery_Energy_Day"
+
+        from(bucket: "openhab")
+            |> range(start: today())
+            |> filter(fn: (r) => r._measurement == source and r._field == "value" and r._value < 0.0)
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1m, fn: mean, createEmpty: false, offset: -1s)
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _value: math.abs(x: r._value) / 60.00 / 1000.0,
+                        _measurement: destination,
+                        _field: r._field,
+                    }),
+            )
+            |> aggregateWindow(every: 1d, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1d)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: bold-sutherland-e94005
+spec:
+    every: 1h
+    name: FroniusSymo_FromBattery_Energy_Year
+    offset: 10m0s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_FromBattery_Energy_Month"
+        option destination = "FroniusSymo_FromBattery_Energy_Year"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1y)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: busy-lehmann-e94013
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_DirectConsumed_Energy_Year
+    offset: 55s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "FroniusSymo_DirectConsumed_Energy_Month"
+
+        option destination = "FroniusSymo_DirectConsumed_Energy_Year"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1y)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: compassionate-colden-294005
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_TotalConsumed_Energy_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "FroniusSymo_TotalConsumed_Energy_Day"
+
+        option destination = "FroniusSymo_TotalConsumed_Energy_Month"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1mo)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: competent-banach-a94015
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_FromBattery_Energy_Day
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_Battery_Power"
+        option destination = "FroniusSymo_FromBattery_Energy_Day"
+
+        from(bucket: "openhab")
+            |> range(start: today())
+            |> filter(fn: (r) => r._measurement == source and r._field == "value" and r._value > 0.0)
+            |> aggregateWindow(every: 1m, fn: mean, createEmpty: false, offset: -1s)
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _value: r._value / 60.00 / 1000.0,
+                        _measurement: destination,
+                        _field: r._field,
+                    }),
+            )
+            |> aggregateWindow(every: 1d, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1d)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: crazy-carver-294001
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_FromGrid_Energy_Day
+    offset: 45s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_Grid_Power"
+        option destination = "FroniusSymo_FromGrid_Energy_Day"
+
+        from(bucket: "openhab")
+            |> range(start: today())
+            |> filter(fn: (r) => r._measurement == source and r._field == "value" and r._value > 0)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> aggregateWindow(every: 1m, fn: mean, createEmpty: false, offset: -1s)
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _value: r._value / 60.00 / 1000.0,
+                        _measurement: destination,
+                        _field: r._field,
+                    }),
+            )
+            |> aggregateWindow(every: 1d, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1d)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: dazzling-borg-e94001
+spec:
+    every: 5m0s
+    name: Energy_Cost_Aggregate
+    query: |-
+        import "timezone"
+        import "date"
+
+
+
+        option start = date.truncate(t: -24h, unit: 1h)
+        option location = timezone.location(name: "Europe/Vienna")
+
+        grid =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_Grid_Power" and r["_value"] > 0)
+                |> aggregateWindow(every: 1m, fn: mean)
+                |> fill(value: 0.0)
+                |> map(fn: (r) => ({r with _value: r._value / 60.0 / 1000.0}))
+                |> aggregateWindow(every: 1h, fn: sum, timeSrc: "_start")
+                |> drop(columns: ["_start", "_stop"])
+                |> group()
+
+        total =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(
+                    fn: (r) => r["_measurement"] == "FroniusSymo_TotalConsumed_Power" and r["_value"] > 0,
+                )
+                |> aggregateWindow(every: 1m, fn: mean)
+                |> fill(value: 0.0)
+                |> map(fn: (r) => ({r with _value: r._value / 60.0 / 1000.0}))
+                |> aggregateWindow(every: 1h, fn: sum, timeSrc: "_start")
+                |> drop(columns: ["_start", "_stop"])
+                |> group()
+
+        priceSpot =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "Energy_Price_Spot")
+                |> drop(columns: ["_start", "_stop", "_field"])
+                |> aggregateWindow(every: 1h, fn: mean, timeSrc: "_start")
+                |> group()
+
+        priceFix =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "Energy_Price_Fix")
+                |> drop(columns: ["_start", "_stop", "_field"])
+                |> aggregateWindow(every: 1h, fn: mean, timeSrc: "_start")
+                |> fill(value: 0.2182)
+                |> group()
+
+        // ======================
+        // Real Costs
+        // =======================
+        union(tables: [grid, priceSpot])
+            |> pivot(rowKey: ["_time"], columnKey: ["_measurement"], valueColumn: "_value")
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _measurement: "Energy_Cost_Spot",
+                        _field: "value",
+                        _value:
+                            if exists r.Energy_Price_Spot then
+                                r.FroniusSymo_Grid_Power * r.Energy_Price_Spot
+                            else
+                                0.0,
+                    }),
+            )
+            |> to(bucket: "aggregated")
+
+        union(tables: [grid, priceFix])
+            |> pivot(rowKey: ["_time"], columnKey: ["_measurement"], valueColumn: "_value")
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _measurement: "Energy_Cost_Fix",
+                        _field: "value",
+                        _value:
+                            if exists r.Energy_Price_Fix then
+                                r.FroniusSymo_Grid_Power * r.Energy_Price_Fix
+                            else
+                                0.0,
+                    }),
+            )
+            |> to(bucket: "aggregated")
+
+        // ======================
+        // Notional Costs
+        // =======================
+        union(tables: [total, priceSpot])
+            |> pivot(rowKey: ["_time"], columnKey: ["_measurement"], valueColumn: "_value")
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _measurement: "Energy_NotionalCost_Spot",
+                        _field: "value",
+                        _value:
+                            if exists r.Energy_Price_Spot then
+                                r.FroniusSymo_TotalConsumed_Power * r.Energy_Price_Spot
+                            else
+                                0.0,
+                    }),
+            )
+            |> to(bucket: "aggregated")
+
+        union(tables: [total, priceFix])
+            |> pivot(rowKey: ["_time"], columnKey: ["_measurement"], valueColumn: "_value")
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _measurement: "Energy_NotionalCost_Fix",
+                        _field: "value",
+                        _value:
+                            if exists r.Energy_Price_Fix then
+                                r.FroniusSymo_TotalConsumed_Power * r.Energy_Price_Fix
+                            else
+                                0.0,
+                    }),
+            )
+            |> to(bucket: "aggregated")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: dreamy-booth-e9401b
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_TotalConsumed_Energy_Day
+    offset: 45s
+    query: |-
+        import "math"
+        import "timezone"
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        from(bucket: "openhab")
+            |> range(start: today())
+            |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_TotalConsumed_Power")
+            |> aggregateWindow(every: 15s, fn: mean)
+            |> map(fn: (r) => ({r with _value: r._value / 1000.0 / 240.0}))
+            |> aggregateWindow(every: 1d, fn: sum)
+            |> map(fn: (r) => ({r with _measurement: "FroniusSymo_TotalConsumed_Energy_Day"}))
+            |> truncateTimeColumn(unit: 1d)
+            |> drop(columns: ["_start", "_stop"])
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: ecstatic-tu-e9401d
+spec:
+    every: 1m
+    name: FroniusSymo_DirectConsumed_Power_Aggregate
+    query: |-
+        import "math"
+        import "date"
+        import "timezone"
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option start = date.truncate(t: -12h, unit: 1h)
+
+        from(bucket: "openhab")
+            |> range(start: start)
+            |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_DirectConsumed_Power")
+            |> aggregateWindow(every: 5m, fn: mean)
+            |> truncateTimeColumn(unit: 5m)
+            |> drop(columns: ["_start", "_stop"])
+            |> to(bucket: "aggregated")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: elated-kapitsa-a94011
+spec:
+    cron: 59 * * * *
+    name: Energy_Cost_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        // ======================
+        // Real Costs
+        // =======================
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == "Energy_Cost_Spot_Day")
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1mo)
+            |> set(key: "_measurement", value: "Energy_Cost_Spot_Month")
+            |> to(bucket: "history")
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == "Energy_Cost_Fix_Day")
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1mo)
+            |> set(key: "_measurement", value: "Energy_Cost_Fix_Month")
+            |> to(bucket: "history")
+
+        // ======================
+        // Notional Costs
+        // =======================
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == "Energy_NotionalCost_Spot_Day")
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1mo)
+            |> set(key: "_measurement", value: "Energy_NotionalCost_Spot_Month")
+            |> to(bucket: "history")
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == "Energy_NotionalCost_Fix_Day")
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1mo)
+            |> set(key: "_measurement", value: "Energy_NotionalCost_Fix_Month")
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: eloquent-turing-e94017
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_DirectConsumed_Energy_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "FroniusSymo_DirectConsumed_Energy_Day"
+
+        option destination = "FroniusSymo_DirectConsumed_Energy_Month"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1mo)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: endangered-mclaren-e94025
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_Solar_Energy_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_Solar_Energy_Day"
+        option destination = "FroniusSymo_Solar_Energy_Month"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1mo)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: flamboyant-cerf-29400b
+spec:
+    every: 15s
+    name: FroniusSymo_TotalConsumed_Power
+    query: |-
+        import "math"
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option start = date.truncate(t: -12h, unit: 1s)
+
+        solar =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_Solar_Power")
+                |> aggregateWindow(every: 5s, fn: mean)
+                |> fill(value: 0.0)
+                |> drop(columns: ["_start", "_stop"])
+                |> group()
+
+        grid =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_Grid_Power")
+                |> aggregateWindow(every: 5s, fn: mean)
+                |> fill(value: 0.0)
+                |> drop(columns: ["_start", "_stop"])
+                |> group()
+
+        battery =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_Battery_Power")
+                |> aggregateWindow(every: 5s, fn: mean)
+                |> fill(value: 0.0)
+                |> drop(columns: ["_start", "_stop"])
+                |> group()
+
+        union(tables: [solar, grid, battery])
+            |> sort(columns: ["_time"])
+            |> pivot(rowKey: ["_time"], columnKey: ["_measurement"], valueColumn: "_value")
+            |> map(
+                fn: (r) =>
+                    ({
+                        _value:
+                            if r.FroniusSymo_Battery_Power * (-1.0) > r.FroniusSymo_Solar_Power then
+                                r.FroniusSymo_Solar_Power + r.FroniusSymo_Grid_Power
+                            else
+                                r.FroniusSymo_Solar_Power + r.FroniusSymo_Grid_Power
+                                    +
+                                    r.FroniusSymo_Battery_Power,
+                        _time: r._time,
+                    }),
+            )
+            |> filter(fn: (r) => r._value > 0)
+            |> map(fn: (r) => ({r with _value: math.mMax(x: r._value, y: 0.0)}))
+            |> map(fn: (r) => ({r with _measurement: "FroniusSymo_TotalConsumed_Power"}))
+            |> map(fn: (r) => ({r with _field: "value"}))
+            |> drop(columns: ["_start", "_stop"])
+            |> to(bucket: "openhab")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: flamboyant-darwin-294003
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_TotalConsumed_Energy_Year
+    offset: 55s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "FroniusSymo_TotalConsumed_Energy_Month"
+
+        option destination = "FroniusSymo_TotalConsumed_Energy_Year"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1y)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: flamboyant-franklin-a94017
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_Solar_Energy_Day
+    offset: 45s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_Solar_Power"
+        option destination = "FroniusSymo_Solar_Energy_Day"
+
+        from(bucket: "openhab")
+            |> range(start: today())
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1m, fn: mean, createEmpty: false, offset: -1s)
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _value: r._value / 60.00 / 1000.0,
+                        _measurement: destination,
+                        _field: r._field,
+                    }),
+            )
+            |> aggregateWindow(every: 1d, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1d)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: great-hamilton-e94029
+spec:
+    cron: 59 * * * *
+    name: Energy_Cost_Year
+    offset: 55s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        // ======================
+        // Real Costs
+        // =======================
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == "Energy_Cost_Spot_Month")
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1y)
+            |> set(key: "_measurement", value: "Energy_Cost_Spot_Year")
+            |> to(bucket: "history")
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == "Energy_Cost_Fix_Month")
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1y)
+            |> set(key: "_measurement", value: "Energy_Cost_Fix_Year")
+            |> to(bucket: "history")
+
+        // ======================
+        // Notional Costs
+        // =======================
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == "Energy_NotionalCost_Spot_Month")
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1y)
+            |> set(key: "_measurement", value: "Energy_NotionalCost_Spot_Year")
+            |> to(bucket: "history")
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == "Energy_NotionalCost_Fix_Month")
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> truncateTimeColumn(unit: 1y)
+            |> set(key: "_measurement", value: "Energy_NotionalCost_Fix_Year")
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: hungry-dubinsky-e9400b
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_FromBattery_Energy_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_FromBattery_Energy_Day"
+        option destination = "FroniusSymo_FromBattery_Energy_Month"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1mo)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: hungry-feistel-e9400f
+spec:
+    every: 1m
+    name: FroniusSymo_TotalConsumed_Power_Aggregate
+    query: |-
+        import "math"
+        import "date"
+        import "timezone"
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option start = date.truncate(t: -12h, unit: 1h)
+
+
+        from(bucket: "openhab")
+            |> range(start: start)
+            |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_TotalConsumed_Power")
+            |> aggregateWindow(every: 5m, fn: mean)
+            |> truncateTimeColumn(unit: 5m)
+            |> drop(columns: ["_start", "_stop"])
+            |> to(bucket: "aggregated")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: infallible-chaplygin-a9400d
+spec:
+    every: 1h
+    name: FroniusSymo_ToGrid_Energy_Year
+    offset: 10m0s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_ToGrid_Energy_Month"
+        option destination = "FroniusSymo_ToGrid_Energy_Year"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1y)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: loving-banach-a94009
+spec:
+    cron: 59 * * * *
+    name: Energy_Revenue_Day
+    offset: 10s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        // Current revenue that is payed
+        // https://www.oem-ag.at/de/marktpreis/
+        option revenue = 10.168
+
+        // The date from when the revenue is valid
+        option start = 2026-09-01T00:00:00Z
+
+        option source = "FroniusSymo_ToGrid_Energy_Day"
+        option destination = "Energy_Revenue_Day"
+
+        from(bucket: "history")
+            |> range(start: start)
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _value: r._value * revenue / 100.0,
+                        _measurement: destination,
+                        _field: r._field,
+                    }),
+            )
+            |> truncateTimeColumn(unit: 1d)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: loving-blackburn-e94003
+spec:
+    cron: 59 * * * *
+    name: Energy_Cost_Day
+    offset: 45s
+    query: |-
+        import "timezone"
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        // ======================
+        // Real Costs
+        // =======================
+        from(bucket: "aggregated")
+            |> range(start: today())
+            |> filter(fn: (r) => r["_measurement"] == "Energy_Cost_Spot")
+            |> aggregateWindow(every: 1d, fn: sum)
+            |> truncateTimeColumn(unit: 1d)
+            |> set(key: "_measurement", value: "Energy_Cost_Spot_Day")
+            |> to(bucket: "history")
+
+        from(bucket: "aggregated")
+            |> range(start: today())
+            |> filter(fn: (r) => r["_measurement"] == "Energy_Cost_Fix")
+            |> aggregateWindow(every: 1d, fn: sum)
+            |> truncateTimeColumn(unit: 1d)
+            |> set(key: "_measurement", value: "Energy_Cost_Fix_Day")
+            |> to(bucket: "history")
+
+        // ======================
+        // Notional Costs
+        // =======================
+        from(bucket: "aggregated")
+            |> range(start: today())
+            |> filter(fn: (r) => r["_measurement"] == "Energy_NotionalCost_Spot")
+            |> aggregateWindow(every: 1d, fn: sum)
+            |> truncateTimeColumn(unit: 1d)
+            |> set(key: "_measurement", value: "Energy_NotionalCost_Spot_Day")
+            |> to(bucket: "history")
+
+        from(bucket: "aggregated")
+            |> range(start: today())
+            |> filter(fn: (r) => r["_measurement"] == "Energy_NotionalCost_Fix")
+            |> aggregateWindow(every: 1d, fn: sum)
+            |> truncateTimeColumn(unit: 1d)
+            |> set(key: "_measurement", value: "Energy_NotionalCost_Fix_Day")
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: modest-lumiere-a9400b
+spec:
+    every: 1h
+    name: FroniusSymo_ToBattery_Energy_Year
+    offset: 10m0s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_ToBattery_Energy_Month"
+        option destination = "FroniusSymo_ToBattery_Energy_Year"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1y)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: recursing-robinson-a94019
+spec:
+    every: 5m
+    name: FroniusSymo_Grid_Power_Aggregate
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option start = date.truncate(t: -12h, unit: 1h)
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "FroniusSymo_Grid_Power"
+
+        from(bucket: "openhab")
+            |> range(start: start)
+            |> filter(fn: (r) => r["_measurement"] == source)
+            |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+            |> drop(columns: ["_start", "_stop", "item"])
+            |> truncateTimeColumn(unit: 5m)
+            |> to(bucket: "aggregated")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: relaxed-cohen-e94015
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_FromGrid_Energy_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_FromGrid_Energy_Day"
+        option destination = "FroniusSymo_FromGrid_Energy_Month"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1mo)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: reverent-napier-e94027
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_DirectConsumed_Energy_Day
+    offset: 45s
+    query: |-
+        import "math"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        from(bucket: "openhab")
+            |> range(start: today())
+            |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_DirectConsumed_Power")
+            |> aggregateWindow(every: 15s, fn: mean)
+            |> map(fn: (r) => ({r with _value: r._value / 1000.0 / 240.0}))
+            |> aggregateWindow(every: 1d, fn: sum)
+            |> map(fn: (r) => ({r with _measurement: "FroniusSymo_DirectConsumed_Energy_Day"}))
+            |> truncateTimeColumn(unit: 1d)
+            |> drop(columns: ["_start", "_stop"])
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: rusty-wozniak-294007
+spec:
+    every: 1h
+    name: FroniusSymo_Solar_Energy_Year
+    offset: 10m0s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_Solar_Energy_Month"
+        option destination = "FroniusSymo_Solar_Energy_Year"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1y)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: serene-hermann-e94021
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_ToGrid_Energy_Day
+    offset: 45s
+    query: |-
+        import "date"
+        import "math"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_Grid_Power"
+        option destination = "FroniusSymo_ToGrid_Energy_Day"
+
+        from(bucket: "openhab")
+            |> range(start: today())
+            |> filter(fn: (r) => r._measurement == source and r._field == "value" and r._value < 0)
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> aggregateWindow(every: 1m, fn: mean, createEmpty: false, offset: -1s)
+            |> map(
+                fn: (r) =>
+                    ({
+                        _time: r._time,
+                        _value: math.abs(x: r._value / 60.00 / 1000.0),
+                        _measurement: destination,
+                        _field: r._field,
+                    }),
+            )
+            |> aggregateWindow(every: 1d, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1d)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: silly-fermi-e94011
+spec:
+    cron: 59 * * * *
+    name: Energy_Revenue_Year
+    offset: 30s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "Energy_Revenue_Month"
+        option destination = "Energy_Revenue_Year"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1y)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: sleepy-mahavira-e94023
+spec:
+    cron: 59 * * * *
+    name: FroniusSymo_ToBattery_Energy_Month
+    offset: 50s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_ToBattery_Energy_Day"
+        option destination = "FroniusSymo_ToBattery_Energy_Month"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1mo))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1mo, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1mo)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: spectacular-bardeen-e9400d
+spec:
+    every: 1h
+    name: FroniusSymo_FromGrid_Energy_Year
+    offset: 10m0s
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option source = "FroniusSymo_FromGrid_Energy_Month"
+        option destination = "FroniusSymo_FromGrid_Energy_Year"
+
+        from(bucket: "history")
+            |> range(start: date.truncate(t: now(), unit: 1y))
+            |> filter(fn: (r) => r._measurement == source and r._field == "value")
+            |> sort(desc: true)
+            |> aggregateWindow(every: 1y, fn: sum, createEmpty: false, offset: -1s)
+            |> duplicate(column: "_measurement", as: "_measurement")
+            |> drop(columns: ["_start", "_stop", "_result"])
+            |> set(key: "_measurement", value: destination)
+            |> truncateTimeColumn(unit: 1y)
+            |> to(bucket: "history")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: stubborn-shockley-e94019
+spec:
+    every: 5m
+    name: Energy_Price_Aggregate
+    query: |-
+        import "date"
+
+
+
+        option start = date.truncate(t: -24h, unit: 1h)
+        option stop = date.truncate(t: 36h, unit: 1h)
+
+        from(bucket: "openhab")
+            |> range(start: start, stop: stop)
+            |> filter(fn: (r) => r["_measurement"] == "Energy_Price_Spot")
+            |> aggregateWindow(every: 1h, fn: mean, timeSrc: "_start", createEmpty: false)
+            |> set(key: "_measurement", value: "Energy_Price_Spot60")
+            |> to(bucket: "aggregated")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: sweet-chandrasekhar-a94013
+spec:
+    every: 5m
+    name: FroniusSymo_Battery_StateOfCharge_Aggregate
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option start = date.truncate(t: -24h, unit: 1h)
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "FroniusSymo_Battery_State_of_Charge"
+
+        from(bucket: "openhab")
+            |> range(start: start)
+            |> filter(fn: (r) => r["_measurement"] == source)
+            |> aggregateWindow(every: 5m, fn: mean, createEmpty: true)
+            |> drop(columns: ["_start", "_stop", "item"])
+            |> truncateTimeColumn(unit: 5m)
+            |> to(bucket: "aggregated")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: unbridled-stonebraker-294009
+spec:
+    every: 5m
+    name: FroniusSymo_Battery_Power_Aggregate
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option start = date.truncate(t: -12h, unit: 1h)
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "FroniusSymo_Battery_Power"
+
+        from(bucket: "openhab")
+            |> range(start: start)
+            |> filter(fn: (r) => r["_measurement"] == source)
+            |> aggregateWindow(every: 5m, fn: mean, createEmpty: true)
+            |> drop(columns: ["_start", "_stop", "item"])
+            |> truncateTimeColumn(unit: 5m)
+            |> to(bucket: "aggregated")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: vibrant-shannon-a9400f
+spec:
+    every: 5m
+    name: FroniusSymo_Solar_Power_Aggregate
+    query: |-
+        import "date"
+        import "timezone"
+
+
+
+        option start = date.truncate(t: -12h, unit: 1h)
+        option location = timezone.location(name: "Europe/Vienna")
+
+        option source = "FroniusSymo_Solar_Power"
+
+        from(bucket: "openhab")
+            |> range(start: start)
+            |> filter(fn: (r) => r["_measurement"] == source)
+            |> aggregateWindow(every: 5m, fn: mean, createEmpty: true)
+            |> drop(columns: ["_start", "_stop", "item"])
+            |> truncateTimeColumn(unit: 5m)
+            |> to(bucket: "aggregated")
+---
+apiVersion: influxdata.com/v2alpha1
+kind: Task
+metadata:
+    name: victorious-haslett-e9401f
+spec:
+    every: 15s
+    name: FroniusSymo_DirectConsumed_Power
+    query: |-
+        import "math"
+        import "date"
+        import "timezone"
+
+
+        option location = timezone.location(name: "Europe/Vienna")
+        option start = date.truncate(t: -12h, unit: 1s)
+
+        solar =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_Solar_Power")
+                |> aggregateWindow(every: 5s, fn: mean)
+                |> drop(columns: ["_start", "_stop"])
+                |> group()
+
+        toGrid =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_Grid_Power")
+                |> map(
+                    fn: (r) =>
+                        ({
+                            _measurement: "FroniusSymo_Grid_Power",
+                            _field: "value",
+                            _value: if r._value <= 0.0 then math.abs(x: r._value) else 0.0,
+                            _time: r._time,
+                        }),
+                )
+                |> aggregateWindow(every: 5s, fn: mean)
+                |> drop(columns: ["_start", "_stop"])
+                |> group()
+
+        toBattery =
+            from(bucket: "openhab")
+                |> range(start: start)
+                |> filter(fn: (r) => r["_measurement"] == "FroniusSymo_Battery_Power")
+                |> map(
+                    fn: (r) =>
+                        ({
+                            _measurement: "FroniusSymo_Battery_Power",
+                            _field: "value",
+                            _value: if r._value <= 0.0 then math.abs(x: r._value) else 0.0,
+                            _time: r._time,
+                        }),
+                )
+                |> aggregateWindow(every: 5s, fn: mean)
+                |> drop(columns: ["_start", "_stop"])
+                |> group()
+
+        // If we do send more energy to the battery than what is available via solar power
+        // then we actually load the battery with grid power
+        // That means the direct consumed power is all the solar power.
+        union(tables: [solar, toGrid, toBattery])
+            |> sort(columns: ["_time"])
+            |> pivot(rowKey: ["_time"], columnKey: ["_measurement"], valueColumn: "_value")
+            |> map(
+                fn: (r) =>
+                    ({
+                        _value:
+                            if r.FroniusSymo_Battery_Power >= r.FroniusSymo_Solar_Power then
+                                r.FroniusSymo_Solar_Power
+                            else
+                                r.FroniusSymo_Solar_Power - r.FroniusSymo_Grid_Power
+                                    -
+                                    r.FroniusSymo_Battery_Power,
+                        _time: r._time,
+                    }),
+            )
+            |> filter(fn: (r) => r._value > 0)
+            |> map(fn: (r) => ({r with _value: math.mMax(x: r._value, y: 0.0)}))
+            |> map(fn: (r) => ({r with _measurement: "FroniusSymo_DirectConsumed_Power"}))
+            |> map(fn: (r) => ({r with _field: "value"}))
+            |> drop(columns: ["_start", "_stop"])
+            |> to(bucket: "openhab")
