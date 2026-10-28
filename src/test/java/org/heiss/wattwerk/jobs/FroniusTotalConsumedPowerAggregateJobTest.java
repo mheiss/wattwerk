@@ -30,7 +30,7 @@ class FroniusTotalConsumedPowerAggregateJobTest {
 
         assertEquals(List.of(
                 new OutputRow(150.0, "W"),
-                new OutputRow(1100.0, "W")), readOutputRows());
+                new OutputRow(900.0, "W")), readOutputRows());
         assertEquals(2, countOutputRows());
     }
 

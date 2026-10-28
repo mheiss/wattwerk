@@ -27,12 +27,21 @@ Liquibase runs the versioned database setup at application startup to create Wat
 
 Configure the names and units with `wattwerk.jobs.total-consumed-power-aggregate.source.solar-item`, `source.grid-item`, `source.battery-item`, `source.unit`, `output.series`, and `output.unit` properties (all using the full `wattwerk.jobs.total-consumed-power-aggregate` prefix). The `lookback` (default `12H`), `source-bucket` (default `5S`), and `output-bucket` (default `5M`) properties control the calculation and replacement window together; durations must be positive whole seconds, and the output bucket must be a multiple of the source bucket.
 
-## Configuration
+## Dev Environment
 
-Set `DB_JDBC_URL`, `DB_USERNAME`, and `DB_PASSWORD` in the runtime environment. PostgreSQL connections set their session timezone to `Europe/Vienna`, allowing job queries to use local calendar boundaries without repeating timezone expressions.
+Run `./gradlew prepareDevConfig` to copy the samples files from the `sample` directory to the `dev` directory. 
+Files in `dev` can be modified as required.
 
-For local development, `quarkusDev` reads `dev/config/application.properties`; keep active credentials out of version control.
+### Docker database
+
+Start the local TimescaleDB instance with `docker compose -f dev/docker/database.yaml up -d`. On the first start with an empty `wattwerk-dev-data` volume, Docker runs `dev/docker/db-init/001-source-tables.sql`. It enables TimescaleDB, creates local-only `public.items` and `public.item_meta` source tables, and registers the three configured Fronius item names. The database starts without readings; add synthetic local readings if you want to exercise the aggregation job.
+
+Docker runs init scripts only when it initializes an empty data volume. Restarting the container preserves the database and does not rerun them. Removing the Compose volume with `docker compose -f docker/database.yaml down -v` permanently deletes this local database and its data.
+
+### Quarkus Application
+
+Run `./gradlew quarkusDev` to apply Liquibase and start the app. Liquibase creates the WattWerk output tables and read-only `openhab` views if required.
 
 ## Testing
 
-Run `.\gradlew.bat test` on Windows (or `./gradlew test` on Linux/macOS). The job integration test starts an isolated TimescaleDB container with Testcontainers, so Docker must be running. It creates minimal `public.items` and `public.item_meta` test tables in that disposable database, applies the normal Liquibase changelog, and seeds synthetic readings from `src/test/resources/db/test/seed-total-consumed-power.sql`. It verifies both battery calculation cases and confirms that running the job again does not duplicate output rows. No local or production openHAB database is used.
+Run `./gradlew test`. The job integration test starts an isolated TimescaleDB container with Testcontainers, so Docker must be running. It creates minimal `public.items` and `public.item_meta` test tables in that disposable database, applies the normal Liquibase changelog, and seeds synthetic readings from `src/test/resources/db/test/seed-total-consumed-power.sql`. It verifies both battery calculation cases and confirms that running the job again does not duplicate output rows. No local or production openHAB database is used.

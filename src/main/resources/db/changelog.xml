@@ -59,9 +59,9 @@
 
     <changeSet id="003-create-read-only-openhab-alias" author="wattwerk">
         <preConditions onFail="HALT">
-            <not>
-                <schemaExists schemaName="openhab"/>
-            </not>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM pg_namespace WHERE nspname = 'openhab'
+            </sqlCheck>
         </preConditions>
         <sql>CREATE SCHEMA openhab</sql>
         <sql>

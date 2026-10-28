@@ -41,7 +41,9 @@ tasks.register('prepareDevConfig') {
     group = 'quarkus'
     description = 'Creates missing backend configuration from sample files.'
     def configs = [
-        [source: file('./config/application-dev.properties.sample'), target: file('dev/config/application.properties')],
+        [source: file('./sample/application-dev.properties'), target: file('dev/application.properties')],
+        [source: file('./sample/docker/database.yaml'), target: file('dev/docker/database.yaml')],
+        [source: file('./sample/docker/db-init/001-source-tables.sql'), target: file('dev/docker/db-init/001-source-tables.sql')],
     ]
     inputs.files(configs.collect { it.source })
     doLast {
@@ -58,7 +60,7 @@ tasks.register('prepareDevConfig') {
 
 tasks.named('quarkusDev') {
     jvmArgs = (jvmArgs ?: []) + [
-        "-Dquarkus.config.locations=${file('dev/config/application.properties').toURI()}",
+        "-Dquarkus.config.locations=${file('dev/application.properties').toURI()}",
         '-Dquarkus.profile=dev'
     ]
 }
