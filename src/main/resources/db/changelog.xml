@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+
+    <changeSet id="001-create-wattwerk-output-tables" author="wattwerk">
+        <preConditions onFail="HALT">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM pg_extension WHERE extname = 'timescaledb'
+            </sqlCheck>
+        </preConditions>
+        <sql>CREATE SCHEMA IF NOT EXISTS wattwerk</sql>
+        <sql>
+            CREATE TABLE wattwerk.aggregated (
+                bucket_time timestamptz NOT NULL,
+                series text NOT NULL,
+                value double precision NOT NULL,
+                unit text NOT NULL,
+                PRIMARY KEY (bucket_time, series)
+            )
+        </sql>
+        <sql>
+            SELECT create_hypertable(
+                'wattwerk.aggregated',
+                'bucket_time',
+                chunk_time_interval =&gt; INTERVAL '7 days',
+                if_not_exists =&gt; TRUE
+            )
+        </sql>
+        <sql>
+            CREATE TABLE wattwerk.history (
+                bucket_time timestamptz NOT NULL,
+                series text NOT NULL,
+                value double precision NOT NULL,
+                unit text NOT NULL,
+                PRIMARY KEY (bucket_time, series)
+            )
+        </sql>
+        <sql>
+            SELECT create_hypertable(
+                'wattwerk.history',
+                'bucket_time',
+                chunk_time_interval =&gt; INTERVAL '30 days',
+                if_not_exists =&gt; TRUE
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet id="002-aggregated-five-year-retention" author="wattwerk">
+        <sql>
+            SELECT add_retention_policy(
+                'wattwerk.aggregated',
+                drop_after =&gt; INTERVAL '5 years',
+                if_not_exists =&gt; TRUE
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet id="003-create-read-only-openhab-alias" author="wattwerk">
+        <preConditions onFail="HALT">
+            <not>
+                <schemaExists schemaName="openhab"/>
+            </not>
+        </preConditions>
+        <sql>CREATE SCHEMA openhab</sql>
+        <sql>
+            CREATE VIEW openhab.items AS
+            SELECT time, item_id, value, string, unit, downsampled
+            FROM public.items
+        </sql>
+        <sql>
+            CREATE VIEW openhab.item_meta AS
+            SELECT id, name, label, value, metadata, created_at
+            FROM public.item_meta
+        </sql>
+        <sql splitStatements="false">
+            CREATE FUNCTION openhab.reject_raw_data_write()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $$
+            BEGIN
+                RAISE EXCEPTION 'openHAB data is read-only to WattWerk';
+            END;
+            $$
+        </sql>
+        <sql>
+            CREATE TRIGGER items_read_only
+            INSTEAD OF INSERT OR UPDATE OR DELETE ON openhab.items
+            FOR EACH ROW EXECUTE FUNCTION openhab.reject_raw_data_write()
+        </sql>
+        <sql>
+            CREATE TRIGGER item_meta_read_only
+            INSTEAD OF INSERT OR UPDATE OR DELETE ON openhab.item_meta
+            FOR EACH ROW EXECUTE FUNCTION openhab.reject_raw_data_write()
+        </sql>
+    </changeSet>
+</databaseChangeLog>

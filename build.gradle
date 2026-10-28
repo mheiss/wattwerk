@@ -10,11 +10,14 @@ repositories {
 
 dependencies {
     implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
-    implementation 'io.quarkus:quarkus-hibernate-orm'
     implementation 'io.quarkus:quarkus-quartz'
     implementation 'io.quarkus:quarkus-jdbc-postgresql'
+    implementation 'io.quarkus:quarkus-liquibase'
+    implementation 'io.quarkus:quarkus-smallrye-health'
     implementation 'io.quarkus:quarkus-arc'
     testImplementation 'io.quarkus:quarkus-junit'
+    testImplementation platform('org.testcontainers:testcontainers-bom:1.21.3')
+    testImplementation 'org.testcontainers:postgresql'
 }
 
 group = 'org.heiss'
@@ -32,4 +35,30 @@ compileJava {
 
 compileTestJava {
     options.encoding = 'UTF-8'
+}
+
+tasks.register('prepareDevConfig') {
+    group = 'quarkus'
+    description = 'Creates missing backend configuration from sample files.'
+    def configs = [
+        [source: file('./config/application-dev.properties.sample'), target: file('dev/config/application.properties')],
+    ]
+    inputs.files(configs.collect { it.source })
+    doLast {
+        configs.each { config ->
+            def target = config.target.toPath()
+            if (!java.nio.file.Files.exists(target)) {
+                java.nio.file.Files.createDirectories(target.parent)
+                java.nio.file.Files.copy(config.source.toPath(), target)
+                logger.lifecycle('Created {}', config.target)
+            }
+        }
+    }
+}
+
+tasks.named('quarkusDev') {
+    jvmArgs = (jvmArgs ?: []) + [
+        "-Dquarkus.config.locations=${file('dev/config/application.properties').toURI()}",
+        '-Dquarkus.profile=dev'
+    ]
 }

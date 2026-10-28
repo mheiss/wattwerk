@@ -2,6 +2,9 @@
 .gradle/
 build/
 
+# Quarkus   
+.quarkus/
+
 # Eclipse
 .project
 .classpath
@@ -14,7 +17,7 @@ bin/
 
 # Local environment
 .env
+dev/
 
-# Plugin directory
-/.quarkus/cli/plugins/
+
 

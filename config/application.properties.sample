@@ -1,0 +1,18 @@
+# Copy to config/application.properties on the deployment machine, then replace
+# every REPLACE_ value. Never commit or distribute the active file with secrets.
+
+# Quarkus configuration
+quarkus.http.host=127.0.0.1
+quarkus.http.port=8080
+
+# Database configuration
+quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/wattwerk
+quarkus.datasource.username=wattwerk
+quarkus.datasource.password=REPLACE_DATABASE_PASSWORD
+
+# (Optional) Logging configuration
+# quarkus.log.file.enabled=true
+# quarkus.log.console.enabled=false
+# quarkus.log.file.path=/var/log/wattwerk/app.log
+# quarkus.log.file.rotation.max-file-size=10M
+# quarkus.log.file.rotation.max-backup-index=5
